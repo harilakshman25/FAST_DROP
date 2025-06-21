@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Orders for {{ store.name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h2>Orders for {{ store.name }}</h2>
+
+    {% if cart_items %}
+    <table class="order-table">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Total Price</th>
+                <th>Order Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cart_item in cart_items %}
+            <tr>
+                <td>{{ cart_item.cart.id }}</td>
+                <td>{{ cart_item.cart.user.username }}</td>
+                <td>{{ cart_item.item.name }}</td>
+                <td>{{ cart_item.quantity }}</td>
+                <td>₹{{ cart_item.subtotal }}</td>
+                <td>{{ cart_item.cart.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No orders placed for {{ store.name }} yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

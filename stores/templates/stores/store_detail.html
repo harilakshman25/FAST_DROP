@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ store.name }} - FastDrop{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/products.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="store-detail">
+    <div class="store-header">
+        <h1>{{ store.name }}</h1>
+        {% if user.is_authenticated and user.role == 'manager' and user == store.manager %}
+        <a href="{% url 'stores:add_item' %}" class="btn btn-primary">Add New Item</a>
+        {% endif %}
+    </div>
+
+    <div class="store-info">
+        <div class="info-section">
+            <h3>Store Information</h3>
+            <p><strong>Address:</strong> {{ store.address }}</p>
+            <p><strong>Contact:</strong> {{ store.contact_number }}</p>
+            {% if store.latitude and store.longitude %}
+            <p><strong>Location:</strong> {{ store.latitude }}, {{ store.longitude }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="store-items">
+        <h2>Available Items</h2>
+        <div class="products-grid">
+            {% for item in store.items.all %}
+            <div class="product-card">
+                <div class="product-image">
+                    {% if item.image %}
+                        <img src="{{ item.image.url }}" alt="{{ item.name }}">
+                    {% else %}
+                        <img src="{% static 'images/placeholder.svg' %}" alt="{{ item.name }}">
+                    {% endif %}
+                </div>
+                <div class="product-info">
+                    <h3>{{ item.name }}</h3>
+                    <p class="price">₹{{ item.price }}</p>
+                    <p class="stock">In Stock: {{ item.stock }}</p>
+                    {% if item.description %}
+                    <p class="description">{{ item.description|truncatewords:20 }}</p>
+                    {% endif %}
+                    {% if user.is_authenticated %}
+                        {% if item.stock > 0 %}
+                        <form method="post" action="{% url 'stores:add_to_cart' item.id %}">
+                            {% csrf_token %}
+                            <div class="quantity-selector">
+                                <label for="quantity">Quantity:</label>
+                                <input type="number" name="quantity" id="quantity" min="1" max="{{ item.stock }}" value="1">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add to Cart</button>
+                        </form>
+                        {% else %}
+                        <p class="out-of-stock">Out of Stock</p>
+                        {% endif %}
+                    {% else %}
+                        <a href="{% url 'accounts:login' %}" class="btn btn-primary">Login to Purchase</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="no-products">
+                <p>No items available at this store.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

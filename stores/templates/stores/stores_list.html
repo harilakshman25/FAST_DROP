@@ -1,0 +1,26 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    {% for store in stores %}
+    <div class="store">
+        <p>{{store.address}}</p>
+            <p>{{store.contact_number}}</p>
+        </div>
+        {%endfor%}
+</body>
+</html>
+
+<!-- now if a normal user enter the website
+he should view all the products
+and he should be able to add products to the cart
+and finally a he should add the payment details and address to which the products should be delivered
+how to make this functional
+how can we differentiate between a customer and manager
+we have create a login page from which we can login user or manager accordingly -->

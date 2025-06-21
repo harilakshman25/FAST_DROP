@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Item - {{ store.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/products.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="add-item-container">
+    <div class="add-item-header">
+        <h2>Add New Item</h2>
+        <p>Add a new item to {{ store.name }}</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="add-item-form">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+        <div class="error-message">
+            {% for error in form.non_field_errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}">Item Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                <span class="error-message">{{ form.name.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.price.id_for_label }}">Price</label>
+                {{ form.price }}
+                {% if form.price.errors %}
+                <span class="error-message">{{ form.price.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.stock.id_for_label }}">Stock Quantity</label>
+                {{ form.stock }}
+                {% if form.stock.errors %}
+                <span class="error-message">{{ form.stock.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.category.id_for_label }}">Category</label>
+                {{ form.category }}
+                {% if form.category.errors %}
+                <span class="error-message">{{ form.category.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group full-width">
+                <label for="{{ form.description.id_for_label }}">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                <span class="error-message">{{ form.description.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group full-width">
+                <div class="image-upload" id="imageUploadContainer">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Click or drag and drop to upload image</p>
+                    {{ form.image }}
+                    {% if form.image.errors %}
+                    <span class="error-message">{{ form.image.errors.0 }}</span>
+                    {% endif %}
+                </div>
+                <img class="image-preview" id="imagePreview" alt="Preview">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{% url 'stores:manager_dashboard' %}" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-submit">Add Item</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const imageInput = document.querySelector('input[type="file"]');
+    const imagePreview = document.getElementById('imagePreview');
+    const uploadContainer = document.getElementById('imageUploadContainer');
+
+    imageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                imagePreview.classList.add('show');
+                uploadContainer.style.display = 'none';
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Drag and drop functionality
+    uploadContainer.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadContainer.style.borderColor = 'var(--primary-color)';
+        uploadContainer.style.background = 'rgba(var(--primary-rgb), 0.05)';
+    });
+
+    uploadContainer.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadContainer.style.borderColor = 'var(--border-color)';
+        uploadContainer.style.background = 'transparent';
+    });
+
+    uploadContainer.addEventListener('drop', function(e) {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            imageInput.files = e.dataTransfer.files;
+            const event = new Event('change');
+            imageInput.dispatchEvent(event);
+        }
+        uploadContainer.style.borderColor = 'var(--border-color)';
+        uploadContainer.style.background = 'transparent';
+    });
+
+    uploadContainer.addEventListener('click', function() {
+        imageInput.click();
+    });
+});
+</script>
+{% endblock %}

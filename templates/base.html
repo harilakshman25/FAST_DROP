@@ -1,0 +1,65 @@
+{% load static %}
+{% load account_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FastDrop - Your One-Stop Shop{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/navbar.css' %}">
+    {% block extra_css %}{% endblock %}
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="{% url 'stores:items_list' %}">FastDrop</a>
+        </div>
+        <div class="navbar-menu">
+            {% if user.is_authenticated %}
+                {% if user|has_role:'customer' %}
+                    <a href="{% url 'stores:items_list' %}" class="nav-link">Products</a>
+                    <a href="{% url 'stores:cart' %}" class="nav-link">Cart</a>
+                {% endif %}
+                {% if user|has_role:'customer' %}
+                    <a href="{% url 'accounts:customer_dashboard' %}" class="nav-link">Dashboard</a>
+                {% elif user|has_role:'manager' %}
+                    <a href="{% url 'orders:store_orders' %}" class="nav-link">Orders</a>
+                    <a href="{% url 'accounts:manager_dashboard' %}" class="nav-link">Manager Dashboard</a>
+                {% elif user|has_role:'delivery_agent' %}
+                    <a href="{% url 'orders:delivery_dashboard' %}" class="nav-link">Delivery Dashboard</a>
+                {% endif %}
+                <a href="{% url 'accounts:profile' %}" class="nav-link">Profile</a>
+                <a href="{% url 'accounts:logout' %}" class="nav-link">Logout</a>
+            {% else %}
+                <a href="{% url 'accounts:login' %}" class="nav-link">Login</a>
+                <a href="{% url 'accounts:signup' %}" class="nav-link">Sign Up</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2024 FastDrop. All rights reserved.</p>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

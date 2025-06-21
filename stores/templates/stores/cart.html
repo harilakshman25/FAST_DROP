@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Shopping Cart - FastDrop{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/cart.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="cart-container">
+    <h1>Your Shopping Cart</h1>
+    
+    {% if cart_items %}
+        <div class="cart-items">
+            {% for item in cart_items %}
+            <div class="cart-item">
+                <div class="item-image">
+                    {% if item.item.image %}
+                        <img src="{{ item.item.image.url }}" alt="{{ item.item.name }}">
+                    {% else %}
+                        <img src="{% static 'images/placeholder.png' %}" alt="{{ item.item.name }}">
+                    {% endif %}
+                </div>
+                <div class="item-details">
+                    <h3>{{ item.item.name }}</h3>
+                    <p class="store-name">Store: {{ item.item.store.name }}</p>
+                    <p class="price">₹{{ item.item.price }}</p>
+                    <div class="quantity-controls">
+                        <form method="post" action="{% url 'stores:update_cart' item.id %}" class="quantity-form">
+                            {% csrf_token %}
+                            <label for="quantity">Quantity:</label>
+                            <input type="number" name="quantity" id="quantity" value="{{ item.quantity }}" 
+                                   min="1" max="{{ item.item.stock }}">
+                            <button type="submit" class="btn btn-primary">Update</button>
+                        </form>
+                        <form method="post" action="{% url 'stores:remove_from_cart' item.id %}" class="remove-form">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Remove</button>
+                        </form>
+                    </div>
+                    <p class="subtotal">Subtotal: ₹{{ item.subtotal }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="cart-summary">
+            <h2>Order Summary</h2>
+            <div class="summary-item">
+                <span>Total Items:</span>
+                <span>{{ cart_items|length }}</span>
+            </div>
+            <div class="summary-item total">
+                <span>Total Amount:</span>
+                <span>₹{{ total_amount }}</span>
+            </div>
+            <a href="{% url 'orders:create_order' %}" class="btn btn-primary checkout-btn">Proceed to Checkout</a>
+        </div>
+    {% else %}
+        <div class="empty-cart">
+            <img src="{% static 'images/empty-cart.png' %}" alt="Empty Cart">
+            <p>Your cart is empty</p>
+            <a href="{% url 'stores:items_list' %}" class="btn btn-primary">Continue Shopping</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

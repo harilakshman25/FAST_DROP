@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Batch Info -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Batch Details</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Date: {{ batch.date }}</h6>
+                    <h6>Status: <span class="badge {% if batch.status == 'COMPLETED' %}bg-success{% elif batch.status == 'IN_PROGRESS' %}bg-primary{% else %}bg-warning{% endif %}">{{ batch.status }}</span></h6>
+                    <h6>Total Orders: {{ batch.total_orders }}</h6>
+                    <h6>Completed Orders: {{ batch.completed_orders }}</h6>
+                    
+                    <div class="progress mb-3">
+                        <div class="progress-bar" role="progressbar" style="width: {{ batch.progress_percentage }}%">
+                            {{ batch.progress_percentage|floatformat:1 }}%
+                        </div>
+                    </div>
+
+                    {% if batch.notes %}
+                    <div class="mt-3">
+                        <h6>Notes:</h6>
+                        <p class="mb-0">{{ batch.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Orders List -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Orders in Batch</h5>
+                </div>
+                <div class="card-body">
+                    {% for order in orders %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">Order #{{ order.id }}</h6>
+                            <p class="card-text">
+                                <strong>Store:</strong> {{ order.store.name }}<br>
+                                <strong>Customer:</strong> {{ order.user.get_full_name }}<br>
+                                <strong>Address:</strong> {{ order.address }}, {{ order.city }}<br>
+                                <strong>Status:</strong> 
+                                <span class="badge {% if order.status == 'DELIVERED' %}bg-success{% elif order.status == 'PICKED' %}bg-primary{% else %}bg-warning{% endif %}">
+                                    {{ order.status }}
+                                </span>
+                            </p>
+                            {% if order.status == 'CONFIRMED' %}
+                            <form method="post" action="{% url 'orders:update_delivery_status' order.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="PICKED">
+                                <button type="submit" class="btn btn-primary btn-sm">Mark as Picked</button>
+                            </form>
+                            {% elif order.status == 'PICKED' %}
+                            <form method="post" action="{% url 'orders:update_delivery_status' order.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="DELIVERED">
+                                <button type="submit" class="btn btn-success btn-sm">Mark as Delivered</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-center">No orders in this batch.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Delivery Route Map</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleMapType('roadmap')">Road</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleMapType('satellite')">Satellite</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleMapType('terrain')">Terrain</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="map" style="height: 600px; width: 100%;">
+                        <div id="map-loading" class="text-center p-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading map...</span>
+                            </div>
+                            <p class="mt-2">Loading map...</p>
+                        </div>
+                        <div id="map-error" class="alert alert-danger d-none">
+                            Error loading map. Please check your internet connection and try again.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let map;
+    let directionsService;
+    let directionsRenderer;
+    let mapInitialized = false;
+    let markers = [];
+    let infoWindows = [];
+
+    function showMapError(message) {
+        document.getElementById('map-loading').style.display = 'none';
+        const errorDiv = document.getElementById('map-error');
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('d-none');
+    }
+
+    function toggleMapType(type) {
+        if (map) {
+            map.setMapTypeId(type);
+        }
+    }
+
+    function clearMarkers() {
+        markers.forEach(marker => marker.setMap(null));
+        markers = [];
+        infoWindows.forEach(window => window.close());
+        infoWindows = [];
+    }
+
+    function createInfoWindow(content) {
+        return new google.maps.InfoWindow({
+            content: content,
+            maxWidth: 300
+        });
+    }
+
+    function addMarker(position, title, content, icon = null) {
+        const marker = new google.maps.Marker({
+            position: position,
+            map: map,
+            title: title,
+            animation: google.maps.Animation.DROP,
+            icon: icon
+        });
+
+        const infoWindow = createInfoWindow(content);
+        infoWindows.push(infoWindow);
+
+        marker.addListener('click', () => {
+            infoWindows.forEach(window => window.close());
+            infoWindow.open(map, marker);
+        });
+
+        markers.push(marker);
+        return marker;
+    }
+
+    function initMap() {
+        try {
+            const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Center of India
+
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 5,
+                center: defaultCenter,
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                }
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                map: map,
+                suppressMarkers: true
+            });
+
+            {% if orders %}
+                const waypoints = [];
+                {% for order in orders %}
+                // Add store marker
+                const storeLocation_{{ order.id }} = { lat: {{ order.store.latitude|default:"0" }}, lng: {{ order.store.longitude|default:"0" }} };
+                if (storeLocation_{{ order.id }}.lat !== 0 && storeLocation_{{ order.id }}.lng !== 0) {
+                    addMarker(
+                        storeLocation_{{ order.id }},
+                        "Store: {{ order.store.name }}",
+                        `<div class="p-2">
+                            <h6>Store: {{ order.store.name }}</h6>
+                            <p class="mb-0">Address: {{ order.store.address }}, {{ order.store.city }}</p>
+                            <p class="mb-0">Contact: {{ order.store.contact_number }}</p>
+                        </div>`
+                    );
+                }
+
+                // Add delivery location marker
+                const deliveryLocation_{{ order.id }} = { lat: {{ order.latitude|default:"0" }}, lng: {{ order.longitude|default:"0" }} };
+                if (deliveryLocation_{{ order.id }}.lat !== 0 && deliveryLocation_{{ order.id }}.lng !== 0) {
+                    addMarker(
+                        deliveryLocation_{{ order.id }},
+                        "Delivery: Order #{{ order.id }}",
+                        `<div class="p-2">
+                            <h6>Order #{{ order.id }}</h6>
+                            <p class="mb-0">Customer: {{ order.user.get_full_name }}</p>
+                            <p class="mb-0">Address: {{ order.address }}, {{ order.city }}</p>
+                            <p class="mb-0">Status: {{ order.status }}</p>
+                        </div>`
+                    );
+                }
+
+                waypoints.push({
+                    location: storeLocation_{{ order.id }},
+                    stopover: true,
+                    title: "Store: {{ order.store.name }}"
+                });
+                waypoints.push({
+                    location: deliveryLocation_{{ order.id }},
+                    stopover: true,
+                    title: "Delivery: Order #{{ order.id }}"
+                });
+                {% endfor %}
+
+                if (waypoints.length > 0) {
+                    calculateAndDisplayRoute(waypoints);
+                }
+            {% else %}
+                // If no orders, just show the map centered on India
+                addMarker(
+                    defaultCenter,
+                    'No orders in batch',
+                    '<div class="p-2"><p class="mb-0">No orders in this batch</p></div>'
+                );
+            {% endif %}
+
+            mapInitialized = true;
+        } catch (error) {
+            console.error('Error initializing map:', error);
+            showMapError('Failed to initialize map. Please refresh the page.');
+        }
+    }
+
+    function calculateAndDisplayRoute(waypoints) {
+        if (!directionsService || !directionsRenderer) return;
+
+        const origin = waypoints[0].location;
+        const destination = waypoints[waypoints.length - 1].location;
+        const intermediateWaypoints = waypoints.slice(1, -1).map(wp => ({
+            location: wp.location,
+            stopover: wp.stopover
+        }));
+
+        directionsService.route({
+            origin: origin,
+            destination: destination,
+            waypoints: intermediateWaypoints,
+            optimizeWaypoints: true,
+            travelMode: google.maps.TravelMode.DRIVING
+        }, (response, status) => {
+            if (status === 'OK') {
+                directionsRenderer.setDirections(response);
+                const bounds = new google.maps.LatLngBounds();
+                response.routes[0].legs.forEach((leg) => {
+                    bounds.extend(leg.start_location);
+                    bounds.extend(leg.end_location);
+                });
+                map.fitBounds(bounds);
+            } else {
+                console.error('Directions request failed:', status);
+                showMapError('Failed to calculate route. Showing markers instead.');
+                showMarkersOnly(waypoints);
+            }
+        });
+    }
+
+    function showMarkersOnly(waypoints) {
+        if (!map) return;
+
+        const bounds = new google.maps.LatLngBounds();
+        const geocoder = new google.maps.Geocoder();
+
+        waypoints.forEach((waypoint, index) => {
+            if (waypoint.location) {
+                addMarker(
+                    waypoint.location,
+                    waypoint.title,
+                    `<div class="p-2">
+                        <h6>${waypoint.title}</h6>
+                        <p class="mb-0">Stop ${index + 1}</p>
+                    </div>`
+                );
+                bounds.extend(waypoint.location);
+            } else {
+                geocoder.geocode({ address: waypoint.location }, (results, status) => {
+                    if (status === 'OK') {
+                        addMarker(
+                            results[0].geometry.location,
+                            waypoint.title,
+                            `<div class="p-2">
+                                <h6>${waypoint.title}</h6>
+                                <p class="mb-0">Stop ${index + 1}</p>
+                            </div>`
+                        );
+                        bounds.extend(results[0].geometry.location);
+                        map.fitBounds(bounds);
+                    }
+                });
+            }
+        });
+    }
+
+    // Load the Maps JavaScript API with error handling
+    window.initMap = initMap;
+</script>
+{% endblock %} 

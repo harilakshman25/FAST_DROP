@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manager Dashboard - FastDrop{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>Manager Dashboard</h1>
+        <div class="dashboard-actions">
+            <a href="{% url 'stores:add_item' %}" class="btn btn-primary">Add New Item</a>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="dashboard-card">
+            <h2>Your Stores</h2>
+            {% if stores %}
+                <div class="list-container">
+                    {% for store in stores %}
+                    <div class="list-item">
+                        <div class="item-info">
+                            <h3>{{ store.name }}</h3>
+                            <p>{{ store.address }}</p>
+                        </div>
+                        <div class="item-actions">
+                            <a href="{% url 'stores:store_detail' store.id %}" class="btn btn-secondary">View Details</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">You haven't added any stores yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="dashboard-card">
+            <h2>Your Items</h2>
+            {% if items %}
+                <div class="list-container">
+                    {% for item in items %}
+                    <div class="list-item">
+                        <div class="item-info">
+                            <h3>{{ item.name }}</h3>
+                            <p>Store: {{ item.store.name }}</p>
+                            <p>Price: ₹{{ item.price }}</p>
+                            <p>Stock: {{ item.stock }}</p>
+                        </div>
+                        <div class="item-actions">
+                            <a href="{% url 'stores:item_detail' item.id %}" class="btn btn-secondary">View Details</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">You haven't added any items yet.</p>
+                <a href="{% url 'stores:add_item' %}" class="btn btn-primary">Add Your First Item</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

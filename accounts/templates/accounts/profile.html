@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Profile - FastDrop{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>Profile</h1>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="dashboard-card">
+            <h2>Account Information</h2>
+            <form method="post" class="form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" value="{{ user.username }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ user.email }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="dashboard-card">
+            <h2>Change Password</h2>
+            <form method="post" action="{% url 'accounts:change_password' %}" class="form">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="old_password">Current Password</label>
+                    <input type="password" id="old_password" name="old_password" required>
+                </div>
+                <div class="form-group">
+                    <label for="new_password1">New Password</label>
+                    <input type="password" id="new_password1" name="new_password1" required>
+                </div>
+                <div class="form-group">
+                    <label for="new_password2">Confirm New Password</label>
+                    <input type="password" id="new_password2" name="new_password2" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Change Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

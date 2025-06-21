@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order #{{ order.id }} - FastDrop{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/orders.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="orders-container">
+    <div class="orders-header">
+        <h1>Order #{{ order.id }}</h1>
+        <a href="{% url 'orders:order_list' %}" class="btn btn-secondary">Back to Orders</a>
+    </div>
+
+    <div class="order-card">
+        <div class="order-header">
+            <div>
+                <p>Order Date: {{ order.created_at|date:"F j, Y" }}</p>
+                <p>Status: <span class="status-badge status-{{ order.status|lower }}">{{ order.get_status_display }}</span></p>
+            </div>
+            <div>
+                <p>Payment Method: {{ order.get_payment_method_display }}</p>
+                <p>Payment Status: {% if order.payment_status %}Paid{% else %}Pending{% endif %}</p>
+            </div>
+        </div>
+
+        <div class="delivery-address">
+            <h3>Delivery Address</h3>
+            <p>{{ order.address }}</p>
+            <p>{{ order.city }}, {{ order.state }}</p>
+            <p>PIN: {{ order.pincode }}</p>
+        </div>
+
+        <div class="order-items">
+            <h3>Order Items</h3>
+            {% for item in order.items.all %}
+            <div class="order-item">
+                <div class="item-details">
+                    <h4>{{ item.item.name }}</h4>
+                    <p>Quantity: {{ item.quantity }}</p>
+                    <p>Price: ₹{{ item.price }}</p>
+                </div>
+                <div class="item-subtotal">
+                    <p>Subtotal: ₹{{ item.subtotal }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="order-total">
+            <span>Total Amount:</span>
+            <span>₹{{ order.total_amount }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %} 

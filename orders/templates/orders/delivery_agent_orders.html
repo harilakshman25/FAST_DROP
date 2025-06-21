@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Map Section -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div id="map" style="height: 600px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Orders Section -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Your Deliveries</h5>
+                </div>
+                <div class="card-body">
+                    {% for order in orders %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6>Order #{{ order.id }}</h6>
+                            <p><strong>Store:</strong> {{ order.store.name }}</p>
+                            <p><strong>Status:</strong> <span class="badge {% if order.status == 'CONFIRMED' %}bg-info{% elif order.status == 'PICKED' %}bg-primary{% endif %}">{{ order.status }}</span></p>
+                            <p><strong>Delivery Address:</strong> {{ order.address }}, {{ order.city }}, {{ order.state }} - {{ order.pincode }}</p>
+                            
+                            {% if order.status == 'CONFIRMED' %}
+                            <button class="btn btn-primary btn-sm mark-picked" data-order-id="{{ order.id }}">Mark as Picked</button>
+                            {% elif order.status == 'PICKED' %}
+                            <button class="btn btn-success btn-sm mark-delivered" data-order-id="{{ order.id }}">Mark as Delivered</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p>No deliveries assigned.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let map;
+let directionsService;
+let directionsRenderer;
+
+function initMap() {
+    map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 12,
+        center: { lat: 0, lng: 0 }
+    });
+
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map
+    });
+
+    {% if polyline %}
+    // Decode the polyline
+    const decodedPath = google.maps.geometry.encoding.decodePath('{{ polyline }}');
+    
+    // Create a new route
+    const route = {
+        overview_polyline: {
+            points: '{{ polyline }}'
+        },
+        legs: {{ legs|safe }}
+    };
+
+    directionsRenderer.setDirections({
+        routes: [route]
+    });
+
+    // Fit the map to show all markers
+    const bounds = new google.maps.LatLngBounds();
+    decodedPath.forEach(point => bounds.extend(point));
+    map.fitBounds(bounds);
+    {% endif %}
+}
+
+// Update delivery agent location
+function updateLocation(position) {
+    const location = `${position.coords.latitude},${position.coords.longitude}`;
+    
+    fetch('{% url "orders:update_location" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `location=${location}`
+    });
+}
+
+// Handle order status updates
+document.querySelectorAll('.mark-picked').forEach(button => {
+    button.addEventListener('click', function() {
+        const orderId = this.dataset.orderId;
+        updateOrderStatus(orderId, 'PICKED');
+    });
+});
+
+document.querySelectorAll('.mark-delivered').forEach(button => {
+    button.addEventListener('click', function() {
+        const orderId = this.dataset.orderId;
+        updateOrderStatus(orderId, 'DELIVERED');
+    });
+});
+
+function updateOrderStatus(orderId, status) {
+    fetch(`/orders/delivery/orders/${orderId}/status/${status}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        }
+    });
+}
+
+// Initialize map when the page loads
+window.onload = function() {
+    initMap();
+    
+    // Start tracking location
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(updateLocation, null, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        });
+    }
+};
+</script>
+{% endblock %} 

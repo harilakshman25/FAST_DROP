@@ -1,0 +1,32 @@
+# Core Django dependencies
+Django==5.1.7
+asgiref==3.8.1
+sqlparse==0.5.3
+pytz==2024.1
+
+# Utility Libraries
+attrs==23.2.0
+Babel==2.10.3
+blinker==1.7.0
+certifi==2023.11.17
+chardet==5.2.0
+click==8.1.6
+colorama==0.4.6
+cryptography==41.0.7
+idna==3.6
+Jinja2==3.1.2
+MarkupSafe==2.1.5
+packaging==24.0
+pexpect==4.9.0
+pillow==10.2.0
+pyparsing==3.1.1
+pyrsistent==0.20.0
+PyYAML==6.0.1
+requests==2.31.0
+rich==13.7.1
+setuptools==68.1.2
+six==1.16.0
+typing_extensions==4.10.0
+urllib3==2.0.7
+wheel==0.42.0
+googlemaps==4.10.0

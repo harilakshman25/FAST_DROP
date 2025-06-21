@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Store Orders - {{ store.name }}</h2>
+    
+    <!-- Order Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Pending</h5>
+                    <p class="card-text display-4">{{ pending_count }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Confirmed</h5>
+                    <p class="card-text display-4">{{ confirmed_count }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Picked</h5>
+                    <p class="card-text display-4">{{ picked_count }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Delivered</h5>
+                    <p class="card-text display-4">{{ delivered_count }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Orders -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-white">
+            <h5 class="card-title mb-0">Pending Orders</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for order in pending_orders %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Order #{{ order.id }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Customer:</strong> {{ order.user.get_full_name }}</p>
+                            <p><strong>Total Amount:</strong> ₹{{ order.total_amount }}</p>
+                            <p><strong>Delivery Address:</strong> {{ order.address }}, {{ order.city }}, {{ order.state }} - {{ order.pincode }}</p>
+                            
+                            <h6>Order Items:</h6>
+                            <ul class="list-unstyled">
+                                {% for item in order.items.all %}
+                                <li>{{ item.item.name }} x {{ item.quantity }} - ₹{{ item.subtotal }}</li>
+                                {% endfor %}
+                            </ul>
+                            
+                            <a href="{% url 'orders:confirm_order' order.id %}" class="btn btn-primary">Confirm Order</a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <p>No pending orders.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmed Orders -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="card-title mb-0">Confirmed Orders</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for order in confirmed_orders %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Order #{{ order.id }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Customer:</strong> {{ order.user.get_full_name }}</p>
+                            <p><strong>Total Amount:</strong> ₹{{ order.total_amount }}</p>
+                            <p><strong>Delivery Address:</strong> {{ order.address }}, {{ order.city }}, {{ order.state }} - {{ order.pincode }}</p>
+                            
+                            <h6>Order Items:</h6>
+                            <ul class="list-unstyled">
+                                {% for item in order.items.all %}
+                                <li>{{ item.item.name }} x {{ item.quantity }} - ₹{{ item.subtotal }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <p>No confirmed orders.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Picked Orders -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Picked Orders</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for order in picked_orders %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Order #{{ order.id }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Customer:</strong> {{ order.user.get_full_name }}</p>
+                            <p><strong>Delivery Agent:</strong> {{ order.delivery_agent.get_full_name }}</p>
+                            <p><strong>Total Amount:</strong> ₹{{ order.total_amount }}</p>
+                            <p><strong>Delivery Address:</strong> {{ order.address }}, {{ order.city }}, {{ order.state }} - {{ order.pincode }}</p>
+                            
+                            <h6>Order Items:</h6>
+                            <ul class="list-unstyled">
+                                {% for item in order.items.all %}
+                                <li>{{ item.item.name }} x {{ item.quantity }} - ₹{{ item.subtotal }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <p>No picked orders.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Delivered Orders -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="card-title mb-0">Delivered Orders</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for order in delivered_orders %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Order #{{ order.id }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Customer:</strong> {{ order.user.get_full_name }}</p>
+                            <p><strong>Delivery Agent:</strong> {{ order.delivery_agent.get_full_name }}</p>
+                            <p><strong>Total Amount:</strong> ₹{{ order.total_amount }}</p>
+                            <p><strong>Delivery Address:</strong> {{ order.address }}, {{ order.city }}, {{ order.state }} - {{ order.pincode }}</p>
+                            
+                            <h6>Order Items:</h6>
+                            <ul class="list-unstyled">
+                                {% for item in order.items.all %}
+                                <li>{{ item.item.name }} x {{ item.quantity }} - ₹{{ item.subtotal }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <p>No delivered orders.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

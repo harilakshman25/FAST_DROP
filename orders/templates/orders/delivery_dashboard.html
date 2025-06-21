@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<!-- Load Google Maps API with callback -->
+<script>
+function initGoogleMaps() {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initMap`;
+    script.async = true;
+    script.defer = true;
+    
+    // Add error handling
+    script.onerror = function() {
+        console.error('Failed to load Google Maps API script');
+        showMapError('Failed to load Google Maps API. Please check your internet connection.');
+    };
+    
+    document.head.appendChild(script);
+}
+
+// Start loading when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initGoogleMaps);
+} else {
+    initGoogleMaps();
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Delivery Dashboard</h2>
+
+    {% if error_message %}
+    <div class="alert alert-danger">
+        {{ error_message }}
+    </div>
+    {% endif %}
+
+    <!-- Assigned Orders Section -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3>Your Assigned Orders</h3>
+            {% if maps_url %}
+            <div>
+                <a href="{{ maps_url }}" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-map-marked-alt"></i> View Updated Route on Maps
+                </a>
+            </div>
+            {% endif %} 
+           
+        </div>
+        <div class="card-body">
+            {% if assigned_orders %}
+            {% if optimized_waypoints %}
+                <div class="mb-4">
+                    <h4>Current Delivery Route</h4>
+                    <p class="text-muted">This route includes only orders that need to be picked up or delivered.</p>
+                    <div class="list-group">
+                        {% for waypoint in optimized_waypoints %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ waypoint.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ waypoint.address }}</small>
+                                    {% if waypoint.type == 'store' %}
+                                    <br>
+                                    <small class="text-primary">Orders to pickup: {% for order_id in waypoint.orders %}#{{ order_id }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge {% if waypoint.type == 'store' %}bg-primary{% else %}bg-success{% endif %}">
+                                    {{ waypoint.type|title }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+                <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Store</th>
+                            <th>Customer</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in assigned_orders %}
+                            <tr {% if order.status == 'DELIVERED' %}class="table-secondary"{% endif %}>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.store.name }}</td>
+                            <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                                <td>
+                                    <span class="badge {% if order.status == 'CONFIRMED' %}bg-warning{% elif order.status == 'PICKED' %}bg-info{% else %}bg-success{% endif %}">
+                                        {{ order.status }}
+                                    </span>
+                                </td>
+                            <td>
+                                {% if order.status == 'CONFIRMED' %}
+                                    <form method="post" action="{% url 'orders:update_delivery_status' order.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="PICKED">
+                                        <button type="submit" class="btn btn-sm btn-info">Mark as Picked</button>
+                                    </form>
+                                {% elif order.status == 'PICKED' %}
+                                    <form method="post" action="{% url 'orders:update_delivery_status' order.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="status" value="DELIVERED">
+                                        <button type="submit" class="btn btn-sm btn-success">Mark as Delivered</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            {% else %}
+                <p>No assigned orders.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Available Orders Section -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Available Orders for Pickup</h3>
+        </div>
+        <div class="card-body">
+            {% if pickup_orders %}
+                <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Store</th>
+                            <th>Customer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in pickup_orders %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.store.name }}</td>
+                            <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                            <td>
+                                    <form method="post" action="{% url 'orders:accept_delivery' order.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-primary">Accept Delivery</button>
+                                    </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            {% else %}
+                <p>No available orders for pickup.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global variables
+let map = null;
+let directionsService = null;
+let directionsRenderer = null;
+let markers = [];
+let infoWindows = [];
+
+function showMapError(message) {
+    const loadingDiv = document.getElementById('map-loading');
+    const errorDiv = document.getElementById('map-error');
+    const mapTypeButtons = document.getElementById('map-type-buttons');
+    
+    if (loadingDiv) {
+        loadingDiv.style.display = 'none';
+    }
+    
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('d-none');
+    }
+
+    if (mapTypeButtons) {
+        mapTypeButtons.style.display = 'none';
+    }
+    
+    console.error('Map Error:', message);
+}
+
+function initMap() {
+    try {
+        const mapDiv = document.getElementById('map');
+        const loadingDiv = document.getElementById('map-loading');
+        const mapTypeButtons = document.getElementById('map-type-buttons');
+
+        if (!mapDiv) {
+            showMapError('Map container not found.');
+            return;
+        }
+
+        // Initialize the map
+        const defaultCenter = { lat: 22.3149, lng: 87.3105 }; // IIT Kharagpur coordinates
+        map = new google.maps.Map(mapDiv, {
+            zoom: 14,
+            center: defaultCenter,
+            mapTypeControl: false, // We'll use our custom buttons
+            streetViewControl: true,
+            fullscreenControl: true,
+            gestureHandling: 'cooperative'
+        });
+
+        // Show map type buttons once map is loaded
+        if (mapTypeButtons) {
+            mapTypeButtons.style.display = 'flex';
+        }
+
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map,
+            suppressMarkers: true // We'll add custom markers
+        });
+
+        // Add markers and calculate route
+        const waypoints = [];
+        {% if assigned_orders %}
+            {% for order in assigned_orders %}
+                {% if order.store and order.store.latitude and order.store.longitude %}
+                    const storeLocation_{{ order.id }} = {
+                        lat: {{ order.store.latitude }},
+                        lng: {{ order.store.longitude }}
+                    };
+                    
+                    addMarker(
+                        storeLocation_{{ order.id }},
+                        "Store: {{ order.store.name }}",
+                        `<div class="p-2">
+                            <h6>Store: {{ order.store.name }}</h6>
+                            <p class="mb-0">Address: {{ order.store.address }}</p>
+                            <p class="mb-0">Contact: {{ order.store.contact_number }}</p>
+                        </div>`,
+                        'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                    );
+                    
+                    waypoints.push({
+                        location: storeLocation_{{ order.id }},
+                        stopover: true
+                    });
+                {% endif %}
+
+                {% if order.latitude and order.longitude %}
+                    const deliveryLocation_{{ order.id }} = {
+                        lat: {{ order.latitude }},
+                        lng: {{ order.longitude }}
+                    };
+                    
+                    addMarker(
+                        deliveryLocation_{{ order.id }},
+                        "Delivery: Order #{{ order.id }}",
+                        `<div class="p-2">
+                            <h6>Order #{{ order.id }}</h6>
+                            <p class="mb-0">Address: {{ order.address }}, {{ order.city }}</p>
+                            <p class="mb-0">Status: {{ order.status }}</p>
+                        </div>`,
+                        'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                    );
+                    
+                    waypoints.push({
+                        location: deliveryLocation_{{ order.id }},
+                        stopover: true
+                    });
+                {% endif %}
+            {% endfor %}
+
+            if (waypoints.length > 0) {
+                calculateRoute(waypoints);
+            } else {
+                showMapError('No valid locations found for route calculation.');
+            }
+        {% endif %}
+
+        // Hide loading indicator
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error('Error initializing map:', error);
+        showMapError('Failed to initialize map: ' + error.message);
+    }
+}
+
+function addMarker(position, title, content, icon = null) {
+    if (!position || !position.lat || !position.lng) {
+        console.warn('Invalid position for marker:', title);
+        return null;
+    }
+
+    const marker = new google.maps.Marker({
+        position: position,
+        map: map,
+        title: title,
+        animation: google.maps.Animation.DROP,
+        icon: icon
+    });
+
+    const infoWindow = new google.maps.InfoWindow({
+        content: content,
+        maxWidth: 300
+    });
+
+    marker.addListener('click', () => {
+        infoWindows.forEach(window => window.close());
+        infoWindow.open(map, marker);
+    });
+
+    markers.push(marker);
+    infoWindows.push(infoWindow);
+    return marker;
+}
+
+function calculateRoute(waypoints) {
+    if (!directionsService || !directionsRenderer || waypoints.length < 2) return;
+
+    const origin = waypoints[0].location;
+    const destination = waypoints[waypoints.length - 1].location;
+    const intermediateWaypoints = waypoints.slice(1, -1);
+
+    directionsService.route({
+        origin: origin,
+        destination: destination,
+        waypoints: intermediateWaypoints,
+        optimizeWaypoints: true,
+        travelMode: google.maps.TravelMode.DRIVING
+    }, (response, status) => {
+        if (status === 'OK') {
+            directionsRenderer.setDirections(response);
+            const bounds = new google.maps.LatLngBounds();
+            response.routes[0].legs.forEach((leg) => {
+                bounds.extend(leg.start_location);
+                bounds.extend(leg.end_location);
+            });
+            map.fitBounds(bounds);
+        } else {
+            console.error('Directions request failed:', status);
+            showMapError('Failed to calculate route. Showing markers only.');
+            showMarkersOnly();
+        }
+    });
+}
+
+function showMarkersOnly() {
+    const bounds = new google.maps.LatLngBounds();
+    markers.forEach(marker => {
+        bounds.extend(marker.getPosition());
+    });
+
+    if (!bounds.isEmpty()) {
+        map.fitBounds(bounds);
+    } else {
+        map.setCenter({ lat: 22.3149, lng: 87.3105 });
+        map.setZoom(14);
+    }
+}
+
+window.toggleMapType = function(type) {
+    if (map) {
+        map.setMapTypeId(type);
+    }
+};
+</script>
+{% endblock %} 

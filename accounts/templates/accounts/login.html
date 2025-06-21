@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Welcome Back</h1>
+            <p>Sign in to continue to FastDrop</p>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="{% if message.tags == 'error' %}error-message{% else %}success-message{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label" for="username">Username or Email</label>
+                <input type="text" class="form-control" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn-auth">Sign In</button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Don't have an account? <a href="{% url 'accounts:signup' %}">Sign up</a></p>
+            <p><a href="{% url 'accounts:password_reset' %}">Forgot your password?</a></p>
+        </div>
+
+        <div class="social-login">
+            <p class="social-login-title">Or continue with</p>
+            <div class="social-buttons">
+                <a href="#" class="btn-social">
+                    <img src="{% static 'images/google.svg' %}" alt="Google">
+                    Google
+                </a>
+                <a href="#" class="btn-social">
+                    <img src="{% static 'images/facebook.svg' %}" alt="Facebook">
+                    Facebook
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
